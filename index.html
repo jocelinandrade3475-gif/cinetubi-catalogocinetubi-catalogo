@@ -1,0 +1,1741 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CineTubi | Películas y Series Gratis. Sin Suscripciones.</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tipografías modernas Plus Jakarta Sans e Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Plus Jakarta Sans', 'sans-serif'],
+          },
+          colors: {
+            tubi: {
+              bg: '#0B0B0F',
+              surface: '#14141C',
+              card: '#1C1C26',
+              border: '#2A2A38',
+              red: '#E50914',
+              redHover: '#F6121D',
+              gold: '#F5C518',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body {
+      background-color: #0B0B0F;
+      color: #FFFFFF;
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+    h1, h2, h3, .font-display {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .fade-in {
+      animation: fadeIn 0.25s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    /* Ocultar barra de scroll horizontal en pills de categorías manteniendo el desplazamiento táctil */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-[#E50914] selection:text-white">
+
+  <!-- Contenedor de notificaciones Toast -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- Modal de confirmación personalizado -->
+  <div id="confirm-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="bg-tubi-surface border border-tubi-border rounded-2xl max-w-md w-full p-6 shadow-2xl fade-in">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-10 h-10 rounded-full bg-red-500/15 text-red-400 flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </div>
+        <h3 id="confirm-title" class="text-lg font-bold text-white">Confirmar acción</h3>
+      </div>
+      <p id="confirm-message" class="text-zinc-300 text-sm mb-6 leading-relaxed">¿Deseas continuar con esta acción?</p>
+      <div class="flex justify-end gap-3">
+        <button id="confirm-cancel-btn" type="button" class="px-4 py-2.5 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-sm font-semibold transition">
+          Cancelar
+        </button>
+        <button id="confirm-accept-btn" type="button" class="px-5 py-2.5 rounded-full bg-[#E50914] hover:bg-[#F6121D] text-white text-sm font-bold transition">
+          Sí, eliminar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Reproductor Simulado estilo Streaming -->
+  <div id="player-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/95 backdrop-blur-md p-4">
+    <div class="bg-tubi-surface border border-tubi-border rounded-3xl max-w-4xl w-full overflow-hidden shadow-2xl fade-in">
+      <div class="flex items-center justify-between px-5 py-3.5 border-b border-tubi-border bg-tubi-bg">
+        <div class="flex items-center gap-2.5">
+          <span class="px-2 py-0.5 rounded bg-[#E50914] text-white font-extrabold text-[11px] tracking-wider">CINETUBI STREAM</span>
+          <h3 id="player-movie-title" class="text-sm sm:text-base font-bold text-white truncate">Reproduciendo película</h3>
+        </div>
+        <button type="button" onclick="closePlayerModal()" class="w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-700 text-white flex items-center justify-center text-sm font-bold transition">
+          ✕
+        </button>
+      </div>
+      <!-- Pantalla de reproducción simulada -->
+      <div class="relative aspect-video bg-black flex flex-col items-center justify-center p-6 text-center overflow-hidden">
+        <div id="player-backdrop" class="absolute inset-0 opacity-30 bg-cover bg-center blur-sm scale-105"></div>
+        <div class="relative z-10 max-w-lg space-y-4">
+          <div id="player-play-icon" class="w-16 h-16 rounded-full bg-[#E50914] text-white flex items-center justify-center mx-auto shadow-lg shadow-[#E50914]/40 animate-pulse">
+            <svg class="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </div>
+          <span class="inline-block px-3 py-1 rounded-full bg-white/10 text-[#FF4D58] text-xs font-bold uppercase tracking-widest">
+            Transmisión Gratuita HD • Sin Suscripciones
+          </span>
+          <h4 id="player-center-title" class="text-2xl sm:text-3xl font-extrabold text-white">Título</h4>
+          <p id="player-center-meta" class="text-xs sm:text-sm text-zinc-300">Director • Año • Género</p>
+        </div>
+
+        <!-- Barra de progreso simulada inferior -->
+        <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black via-black/90 to-transparent p-4 space-y-2.5">
+          <div class="w-full h-1.5 bg-zinc-700 rounded-full overflow-hidden cursor-pointer" onclick="togglePlayerState()">
+            <div id="player-progress-bar" class="h-full bg-[#E50914] w-1/3 transition-all duration-500"></div>
+          </div>
+          <div class="flex items-center justify-between text-xs text-zinc-300">
+            <div class="flex items-center gap-3">
+              <button id="player-toggle-btn" type="button" onclick="togglePlayerState()" class="px-3.5 py-1 rounded-full bg-[#E50914] hover:bg-[#F6121D] text-white font-bold text-xs transition">
+                Pausar
+              </button>
+              <span id="player-time-label" class="font-mono text-[11px]">00:24:18 / 02:08:00</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-zinc-800 text-[10px] font-bold text-zinc-300">1080p HD</span>
+              <span class="px-2 py-0.5 rounded bg-zinc-800 text-[10px] font-bold text-zinc-300">ESP / SUB</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Configuración de Conexión HTTP / Base de Datos Firebase -->
+  <div id="db-config-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/85 backdrop-blur-sm p-4">
+    <div class="bg-tubi-surface border border-tubi-border rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl fade-in">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2.5">
+          <span class="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></span>
+          <h3 class="text-lg font-extrabold text-white">Conexión HTTP / Firebase RTDB</h3>
+        </div>
+        <button type="button" onclick="closeDbConfigModal()" class="w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-bold transition">✕</button>
+      </div>
+      <p class="text-xs text-zinc-300 leading-relaxed mb-4">
+        La aplicación está vinculada directamente mediante solicitudes <strong>HTTP REST (GET, POST, PUT, DELETE)</strong> a tu base de datos en la nube de <strong>Firebase Realtime Database</strong>:
+      </p>
+      <form onsubmit="saveCustomFirebaseUrl(event)" class="space-y-4">
+        <div>
+          <label for="custom-rtdb-url" class="block text-xs font-bold text-zinc-300 mb-1.5">URL Base de Firebase Realtime Database (REST API)</label>
+          <input id="custom-rtdb-url" type="url" value="https://fir-realtime-database-9a970-default-rtdb.firebaseio.com" placeholder="https://fir-realtime-database-9a970-default-rtdb.firebaseio.com"
+            class="w-full px-4 py-2.5 rounded-xl bg-tubi-bg border border-tubi-border text-white text-xs sm:text-sm font-mono focus:outline-none focus:border-[#E50914] transition" />
+          <p class="text-[11px] text-zinc-400 mt-1.5">Endpoints REST activos: <code class="text-[#FF4D58]">/peliculas.json</code> y <code class="text-[#FF4D58]">/usuarios.json</code></p>
+        </div>
+        <div class="flex flex-wrap justify-end gap-2.5 pt-2">
+          <button type="button" onclick="resetCustomFirebaseUrl()" class="px-4 py-2 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold transition">
+            Restaurar URL por defecto
+          </button>
+          <button type="submit" class="px-5 py-2 rounded-full bg-[#E50914] hover:bg-[#F6121D] text-white text-xs font-extrabold transition shadow-lg shadow-[#E50914]/25">
+            Guardar y Sincronizar HTTP
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- BARRA SUPERIOR FIJA (Visible al iniciar sesión)                         -->
+  <!-- ======================================================================= -->
+  <header id="main-navbar" class="hidden sticky top-0 z-40 bg-[#0B0B0F]/95 backdrop-blur-md border-b border-tubi-border">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-wrap items-center justify-between py-3 gap-3">
+        <!-- Logo CineTubi -->
+        <div class="flex items-center gap-4 sm:gap-6">
+          <button type="button" onclick="navigateTo('catalog')" class="flex items-center gap-1.5 focus:outline-none group">
+            <span class="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Cine<span class="text-[#E50914]">Tubi</span></span>
+            <span class="px-1.5 py-0.5 rounded bg-[#E50914] text-white text-[10px] font-extrabold uppercase tracking-wider">GRATIS</span>
+          </button>
+
+          <!-- Navegación principal -->
+          <nav class="flex items-center gap-1.5 sm:gap-2">
+            <button id="nav-catalog-btn" type="button" onclick="navigateTo('catalog')" class="px-4 py-2 rounded-full text-sm font-bold transition">
+              Catálogo de Películas
+            </button>
+            <button id="nav-admin-btn" type="button" onclick="navigateTo('admin')" class="px-4 py-2 rounded-full text-sm font-bold transition flex items-center gap-1.5">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 6v6m0 0v6m-6 0h6m-6 0H6" />
+              </svg>
+              <span>Administración</span>
+            </button>
+          </nav>
+        </div>
+
+        <!-- Indicador BD/HTTP + Buscador rápido + Perfil de usuario + Salir -->
+        <div class="flex items-center gap-2.5 sm:gap-3 w-full lg:w-auto justify-end">
+          <!-- Indicador de estado de red/BD clicable -->
+          <button type="button" onclick="openDbConfigModal()" title="Endpoint activo: https://fir-realtime-database-9a970-default-rtdb.firebaseio.com"
+            class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold transition shrink-0">
+            <span id="db-status-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span id="db-status-text" class="hidden sm:inline">Firebase RTDB Conectado</span>
+            <span class="sm:hidden">RTDB OK</span>
+          </button>
+
+          <div id="navbar-search-wrapper" class="relative flex-1 sm:w-52">
+            <svg class="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input id="catalog-search" type="text" oninput="handleSearchInput()" placeholder="Buscar películas..."
+              class="w-full pl-9 pr-4 py-2 rounded-full bg-tubi-surface border border-tubi-border text-xs sm:text-sm text-white placeholder-zinc-400 focus:outline-none focus:border-[#E50914] transition" />
+          </div>
+
+          <div class="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-full bg-tubi-surface border border-tubi-border">
+            <div id="user-avatar-initials" class="w-6 h-6 rounded-full bg-[#E50914] text-white flex items-center justify-center font-extrabold text-xs">U</div>
+            <span id="navbar-user-name" class="text-xs font-semibold text-zinc-200 max-w-[110px] truncate">Usuario</span>
+          </div>
+
+          <button type="button" onclick="handleLogout()" class="px-3.5 py-2 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-tubi-border text-zinc-300 hover:text-white text-xs font-bold transition shrink-0">
+            Salir
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="flex-1 flex flex-col">
+
+    <!-- ===================================================================== -->
+    <!-- PANTALLA 1: INICIO ESTILO STREAMING GRATUITO (#view-auth)             -->
+    <!-- ===================================================================== -->
+    <section id="view-auth" class="flex-1 flex flex-col justify-between relative overflow-hidden">
+      <!-- Fondo cinematográfico con degradados en rojo vibrante -->
+      <div class="absolute inset-0 pointer-events-none">
+        <div class="absolute -top-40 left-1/4 w-[500px] h-[500px] bg-[#E50914]/15 rounded-full blur-[130px]"></div>
+        <div class="absolute bottom-0 right-10 w-[420px] h-[420px] bg-red-900/15 rounded-full blur-[120px]"></div>
+      </div>
+
+      <!-- Barra superior de bienvenida -->
+      <div class="relative z-10 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <span class="font-display text-3xl sm:text-4xl font-extrabold tracking-tight text-white">Cine<span class="text-[#E50914]">Tubi</span></span>
+          <span class="px-2 py-0.5 rounded bg-[#E50914] text-white text-[11px] font-extrabold uppercase">100% GRATIS</span>
+        </div>
+        <div class="flex items-center gap-2.5">
+          <button type="button" onclick="openDbConfigModal()" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-bold">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>Firebase RTDB Conectado</span>
+          </button>
+          <button type="button" onclick="switchAuthTab('login'); document.getElementById('login-email').focus();" class="px-4 py-2 rounded-full text-xs sm:text-sm font-bold text-white hover:text-[#FF4D58] transition">
+            Iniciar sesión
+          </button>
+          <button type="button" onclick="switchAuthTab('register'); document.getElementById('reg-name').focus();" class="px-4 py-2 rounded-full bg-[#E50914] hover:bg-[#F6121D] text-white text-xs sm:text-sm font-extrabold transition shadow-lg shadow-[#E50914]/25">
+            Registrarse gratis
+          </button>
+        </div>
+      </div>
+
+      <!-- Hero Landing + Caja de Acceso/Registro -->
+      <div class="relative z-10 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-14 grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+        
+        <!-- Presentación izquierda -->
+        <div class="lg:col-span-7 space-y-6 text-center lg:text-left">
+          <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#E50914]/15 border border-[#E50914]/35 text-[#FF4D58] text-xs font-bold tracking-wide">
+            <span>STREAMING ILIMITADO • SIN TARJETA DE CRÉDITO</span>
+          </div>
+
+          <h1 class="font-display text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-[1.1] tracking-tight">
+            Cine<span class="text-[#E50914]">Tubi</span> — Miles de películas y series gratis. <span class="text-[#E50914]">Sin suscripciones.</span>
+          </h1>
+
+          <p class="text-base sm:text-lg text-zinc-300 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
+            Disfruta de clásicos de culto, ciencia ficción, suspenso y estrenos seleccionados al instante. Crea tu cuenta gratuita o ingresa para explorar todo el catálogo y gestionar tus propios títulos.
+          </p>
+
+          <!-- Botones principales de acción en la bienvenida -->
+          <div class="flex flex-wrap items-center justify-center lg:justify-start gap-3.5 pt-1">
+            <button type="button" onclick="quickDemoLogin()" class="px-7 py-3.5 rounded-full bg-[#E50914] hover:bg-[#F6121D] text-white font-extrabold text-sm sm:text-base transition shadow-xl shadow-[#E50914]/30 flex items-center gap-2">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              <span>Entrar con cuenta demo</span>
+            </button>
+            <button type="button" onclick="switchAuthTab('register')" class="px-6 py-3.5 rounded-full bg-tubi-surface hover:bg-zinc-800 border border-tubi-border text-white font-bold text-sm sm:text-base transition">
+              Crear cuenta gratis
+            </button>
+          </div>
+
+          <!-- Credenciales de prueba visibles -->
+          <div class="inline-flex flex-wrap items-center justify-center lg:justify-start gap-3 px-4 py-2.5 rounded-2xl bg-tubi-surface/90 border border-tubi-border text-xs text-zinc-300">
+            <span class="font-bold text-[#FF4D58]">Acceso de prueba:</span>
+            <span class="font-mono text-zinc-200">usuario@cinetubi.com</span>
+            <span class="text-zinc-600">|</span>
+            <span class="font-mono text-zinc-200">123456</span>
+          </div>
+        </div>
+
+        <!-- Panel Derecho: Formularios de Iniciar Sesión y Registro -->
+        <div class="lg:col-span-5">
+          <div class="bg-tubi-surface border border-tubi-border rounded-3xl p-6 sm:p-8 shadow-2xl">
+            <!-- Tabs -->
+            <div class="grid grid-cols-2 p-1 rounded-full bg-tubi-bg border border-tubi-border mb-6">
+              <button id="tab-login-btn" type="button" onclick="switchAuthTab('login')" class="py-2.5 rounded-full text-xs sm:text-sm font-extrabold transition bg-[#E50914] text-white">
+                Iniciar sesión
+              </button>
+              <button id="tab-register-btn" type="button" onclick="switchAuthTab('register')" class="py-2.5 rounded-full text-xs sm:text-sm font-extrabold transition text-zinc-400 hover:text-white">
+                Registrarse gratis
+              </button>
+            </div>
+
+            <!-- Formulario Iniciar Sesión -->
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+              <div>
+                <h2 class="text-xl font-extrabold text-white">Bienvenido de vuelta</h2>
+                <p class="text-xs text-zinc-400 mt-1">Ingresa tus datos para abrir el catálogo de CineTubi.</p>
+              </div>
+
+              <div>
+                <label for="login-email" class="block text-xs font-bold text-zinc-300 mb-1.5">Correo electrónico</label>
+                <input id="login-email" type="email" required value="usuario@cinetubi.com" placeholder="usuario@cinetubi.com"
+                  class="w-full px-4 py-3 rounded-xl bg-tubi-bg border border-tubi-border text-white text-sm focus:outline-none focus:border-[#E50914] transition" />
+              </div>
+
+              <div>
+                <label for="login-password" class="block text-xs font-bold text-zinc-300 mb-1.5">Contraseña</label>
+                <input id="login-password" type="password" required value="123456" placeholder="••••••••"
+                  class="w-full px-4 py-3 rounded-xl bg-tubi-bg border border-tubi-border text-white text-sm focus:outline-none focus:border-[#E50914] transition" />
+              </div>
+
+              <button type="submit" class="w-full py-3.5 px-5 rounded-full bg-[#E50914] hover:bg-[#F6121D] text-white font-extrabold text-sm transition shadow-lg shadow-[#E50914]/25 mt-2">
+                Iniciar sesión ahora
+              </button>
+
+              <p class="text-center text-xs text-zinc-400 pt-2">
+                ¿Primera vez en CineTubi?
+                <button type="button" onclick="switchAuthTab('register')" class="text-[#FF4D58] hover:underline font-bold">Regístrate gratis</button>
+              </p>
+            </form>
+
+            <!-- Formulario Registrarse Gratis -->
+            <form id="register-form" onsubmit="handleRegister(event)" class="space-y-4 hidden">
+              <div>
+                <h2 class="text-xl font-extrabold text-white">Crea tu cuenta gratis</h2>
+                <p class="text-xs text-zinc-400 mt-1">Sin costos ocultos. Accede al instante al catálogo completo.</p>
+              </div>
+
+              <div>
+                <label for="reg-name" class="block text-xs font-bold text-zinc-300 mb-1.5">Nombre completo</label>
+                <input id="reg-name" type="text" required placeholder="Ej. Sofía Ramírez"
+                  class="w-full px-4 py-3 rounded-xl bg-tubi-bg border border-tubi-border text-white text-sm focus:outline-none focus:border-[#E50914] transition" />
+              </div>
+
+              <div>
+                <label for="reg-email" class="block text-xs font-bold text-zinc-300 mb-1.5">Correo electrónico</label>
+                <input id="reg-email" type="email" required placeholder="tu.correo@ejemplo.com"
+                  class="w-full px-4 py-3 rounded-xl bg-tubi-bg border border-tubi-border text-white text-sm focus:outline-none focus:border-[#E50914] transition" />
+              </div>
+
+              <div>
+                <label for="reg-password" class="block text-xs font-bold text-zinc-300 mb-1.5">Contraseña (mín. 4 caracteres)</label>
+                <input id="reg-password" type="password" required minlength="4" placeholder="Elige una contraseña"
+                  class="w-full px-4 py-3 rounded-xl bg-tubi-bg border border-tubi-border text-white text-sm focus:outline-none focus:border-[#E50914] transition" />
+              </div>
+
+              <button type="submit" class="w-full py-3.5 px-5 rounded-full bg-[#E50914] hover:bg-[#F6121D] text-white font-extrabold text-sm transition shadow-lg shadow-[#E50914]/25 mt-2">
+                Registrarme gratis
+              </button>
+
+              <p class="text-center text-xs text-zinc-400 pt-2">
+                ¿Ya tienes cuenta?
+                <button type="button" onclick="switchAuthTab('login')" class="text-[#FF4D58] hover:underline font-bold">Inicia sesión</button>
+              </p>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="h-4"></div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- PANTALLA 2: CATÁLOGO ESTILO STREAMING (#view-catalog)                 -->
+    <!-- ===================================================================== -->
+    <section id="view-catalog" class="hidden max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8 fade-in">
+      
+      <!-- Banner Destacado Hero estilo plataforma streaming -->
+      <div id="catalog-hero-banner" class="relative rounded-3xl overflow-hidden border border-tubi-border bg-tubi-surface shadow-2xl">
+        <div class="grid grid-cols-1 lg:grid-cols-12 items-center">
+          <div class="lg:col-span-7 p-6 sm:p-10 lg:p-12 space-y-4 relative z-10">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="px-2.5 py-1 rounded bg-[#E50914] text-white text-[11px] font-extrabold uppercase tracking-wider">DESTACADA DE HOY</span>
+              <span id="hero-genre-badge" class="px-3 py-1 rounded-full bg-white/10 text-zinc-200 text-xs font-semibold">Ciencia Ficción</span>
+              <span id="hero-year-badge" class="text-xs font-bold text-zinc-400">2010</span>
+            </div>
+
+            <h1 id="hero-title" class="font-display text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-tight">
+              Inception (El Origen)
+            </h1>
+
+            <p id="hero-synopsis" class="text-sm sm:text-base text-zinc-300 line-clamp-3 max-w-2xl leading-relaxed">
+              Dom Cobb es un ladrón experto en el peligroso arte de la extracción: robar valiosos secretos desde lo más profundo del subconsciente durante el estado de sueño.
+            </p>
+
+            <div class="flex flex-wrap items-center gap-3 pt-2">
+              <button id="hero-play-btn" type="button" class="px-6 py-3 rounded-full bg-[#E50914] hover:bg-[#F6121D] text-white font-extrabold text-sm transition flex items-center gap-2 shadow-lg shadow-[#E50914]/30">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+                <span>Ver gratis ahora</span>
+              </button>
+              <button id="hero-detail-btn" type="button" class="px-5 py-3 rounded-full bg-white/10 hover:bg-white/15 text-white font-bold text-sm transition">
+                Más información
+              </button>
+            </div>
+          </div>
+
+          <div class="lg:col-span-5 relative h-64 sm:h-72 lg:h-96 bg-tubi-bg flex items-center justify-center overflow-hidden">
+            <img id="hero-poster-img" src="" alt="Película destacada" class="w-full h-full object-cover opacity-85" />
+            <div class="absolute inset-0 bg-gradient-to-t lg:bg-gradient-to-r from-tubi-surface via-tubi-surface/40 to-transparent"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pills de Categorías / Géneros -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between gap-4">
+          <div id="genre-pills-container" class="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+            <!-- Píldoras generadas dinámicamente -->
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between text-xs text-zinc-400">
+          <p id="catalog-count-label" class="font-medium">Mostrando películas disponibles</p>
+          <button type="button" onclick="navigateTo('admin')" class="text-[#FF4D58] hover:underline font-bold">
+            + Dar de alta película
+          </button>
+        </div>
+      </div>
+
+      <!-- Cuadrícula de tarjetas verticales 2:3 -->
+      <div id="catalog-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
+        <!-- Tarjetas inyectadas por JS -->
+      </div>
+
+      <!-- Estado vacío -->
+      <div id="catalog-empty-state" class="hidden text-center py-16 px-4 bg-tubi-surface border border-tubi-border rounded-3xl">
+        <h3 class="text-lg font-extrabold text-white">No encontramos resultados</h3>
+        <p class="text-sm text-zinc-400 mt-1">Prueba seleccionando otra categoría o limpiando tu búsqueda.</p>
+        <button type="button" onclick="resetFilters()" class="mt-4 px-5 py-2.5 rounded-full bg-[#E50914] text-white font-extrabold text-xs hover:bg-[#F6121D] transition">
+          Mostrar todo el catálogo
+        </button>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- PANTALLA 3: DESCRIPCIÓN DETALLADA DE LA PELÍCULA (#view-detail)       -->
+    <!-- ===================================================================== -->
+    <section id="view-detail" class="hidden max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 fade-in">
+      <!-- Botón superior para regresar -->
+      <div class="mb-6">
+        <button type="button" onclick="navigateTo('catalog')" class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-tubi-surface hover:bg-zinc-800 border border-tubi-border text-white text-xs sm:text-sm font-bold transition">
+          <svg class="w-4 h-4 text-[#E50914]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          <span>Volver al catálogo</span>
+        </button>
+      </div>
+
+      <!-- Contenedor con degradado cinematográfico -->
+      <div class="relative rounded-3xl overflow-hidden border border-tubi-border bg-gradient-to-br from-tubi-surface via-[#12121A] to-tubi-bg shadow-2xl">
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-6 p-6 sm:p-8 lg:p-10 items-start">
+          
+          <!-- Póster en alta calidad (2:3) -->
+          <div class="md:col-span-4 lg:col-span-4 flex justify-center">
+            <div class="relative w-full max-w-[280px] aspect-[2/3] rounded-2xl overflow-hidden border border-white/15 shadow-2xl bg-zinc-900">
+              <img id="detail-poster" src="" alt="Póster de película" class="w-full h-full object-cover" />
+              <span class="absolute top-3 left-3 px-2.5 py-1 rounded bg-[#E50914] text-white text-[11px] font-extrabold uppercase tracking-wider shadow">
+                GRATIS
+              </span>
+            </div>
+          </div>
+
+          <!-- Información completa: Título, Año, Director, Género y Sinopsis -->
+          <div class="md:col-span-8 lg:col-span-8 space-y-6">
+            <div class="space-y-3">
+              <div class="flex flex-wrap items-center gap-2.5">
+                <span id="detail-genre" class="px-3.5 py-1 rounded-full bg-[#E50914]/15 border border-[#E50914]/45 text-[#FF4D58] text-xs font-extrabold uppercase tracking-wider">
+                  Género
+                </span>
+                <span id="detail-year-badge" class="px-3 py-1 rounded-full bg-zinc-800 text-zinc-200 text-xs font-bold">
+                  Año
+                </span>
+                <span class="px-2.5 py-1 rounded-full bg-white/5 text-zinc-400 text-xs font-semibold">
+                  HD • Español
+                </span>
+              </div>
+
+              <h1 id="detail-title" class="font-display text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-tight">
+                Título de la película
+              </h1>
+            </div>
+
+            <!-- Botón Reproducir Ahora en rojo vibrante -->
+            <div class="flex flex-wrap items-center gap-3">
+              <button id="detail-play-btn" type="button" class="px-8 py-3.5 rounded-full bg-[#E50914] hover:bg-[#F6121D] text-white font-extrabold text-sm sm:text-base transition shadow-xl shadow-[#E50914]/30 flex items-center gap-2.5">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+                <span>Reproducir ahora</span>
+              </button>
+              <button type="button" onclick="navigateTo('catalog')" class="px-5 py-3.5 rounded-full bg-zinc-800/90 hover:bg-zinc-700 text-white text-sm font-bold transition">
+                Ver más títulos
+              </button>
+            </div>
+
+            <!-- Ficha Técnica: Año de estreno y Director -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+              <div class="p-4 rounded-2xl bg-tubi-bg/90 border border-tubi-border">
+                <span class="block text-[11px] uppercase tracking-wider text-zinc-400 font-bold">Año de estreno</span>
+                <span id="detail-year" class="text-lg font-extrabold text-white mt-0.5 block">2010</span>
+              </div>
+              <div class="p-4 rounded-2xl bg-tubi-bg/90 border border-tubi-border sm:col-span-2">
+                <span class="block text-[11px] uppercase tracking-wider text-zinc-400 font-bold">Director</span>
+                <span id="detail-director" class="text-lg font-extrabold text-white mt-0.5 block">Christopher Nolan</span>
+              </div>
+            </div>
+
+            <!-- Sinopsis -->
+            <div class="space-y-2 pt-1">
+              <h2 class="text-xs font-extrabold uppercase tracking-widest text-[#FF4D58]">Sinopsis</h2>
+              <p id="detail-synopsis" class="text-zinc-200 text-sm sm:text-base leading-relaxed">
+                Sinopsis detallada de la película seleccionada.
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    <section id="view-admin" class="hidden max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 fade-in space-y-8">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <span class="text-xs font-extrabold uppercase tracking-widest text-[#FF4D58]">Gestión de Contenido · HTTP REST & Base de Datos</span>
+          <h1 class="font-display text-2xl sm:text-3xl font-extrabold text-white mt-1">Administrar Catálogo CineTubi</h1>
+          <p class="text-sm text-zinc-400 mt-1">Cada alta o baja ejecuta solicitudes HTTP (POST / DELETE) y persiste en la base de datos.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2.5">
+          <button type="button" onclick="openDbConfigModal()" class="px-4 py-2.5 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/35 text-emerald-300 text-xs font-bold transition">
+            Configurar URL Firebase
+          </button>
+          <button type="button" onclick="confirmResetCatalog()" class="px-4 py-2.5 rounded-full bg-tubi-surface hover:bg-zinc-800 border border-tubi-border text-zinc-300 text-xs font-bold transition">
+            Restaurar catálogo inicial
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        <!-- Formulario de Alta de Películas -->
+        <div class="lg:col-span-5 bg-tubi-surface border border-tubi-border rounded-3xl p-6 shadow-xl">
+          <div class="flex items-center gap-3 mb-5">
+            <div class="w-9 h-9 rounded-full bg-[#E50914] text-white flex items-center justify-center font-extrabold">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-lg font-extrabold text-white">Dar de alta película</h2>
+              <p class="text-xs text-zinc-400">Completa los datos para publicarla en el catálogo</p>
+            </div>
+          </div>
+
+          <form id="add-movie-form" onsubmit="handleAddMovie(event)" class="space-y-4">
+            <div>
+              <label for="movie-title" class="block text-xs font-bold text-zinc-300 mb-1">Título *</label>
+              <input id="movie-title" type="text" required placeholder="Ej. Blade Runner 2049"
+                oninput="updatePosterPreview()"
+                class="w-full px-3.5 py-2.5 rounded-xl bg-tubi-bg border border-tubi-border text-white text-sm focus:outline-none focus:border-[#E50914] transition" />
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="movie-year" class="block text-xs font-bold text-zinc-300 mb-1">Año *</label>
+                <input id="movie-year" type="number" required min="1888" max="2035" placeholder="Ej. 2017"
+                  oninput="updatePosterPreview()"
+                  class="w-full px-3.5 py-2.5 rounded-xl bg-tubi-bg border border-tubi-border text-white text-sm focus:outline-none focus:border-[#E50914] transition" />
+              </div>
+
+              <div>
+                <label for="movie-genre" class="block text-xs font-bold text-zinc-300 mb-1">Género *</label>
+                <select id="movie-genre" required onchange="updatePosterPreview()"
+                  class="w-full px-3.5 py-2.5 rounded-xl bg-tubi-bg border border-tubi-border text-white text-sm focus:outline-none focus:border-[#E50914] transition">
+                  <option value="Ciencia Ficción">Ciencia Ficción</option>
+                  <option value="Acción">Acción</option>
+                  <option value="Drama">Drama</option>
+                  <option value="Terror">Terror</option>
+                  <option value="Animación">Animación</option>
+                  <option value="Suspenso">Suspenso</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label for="movie-director" class="block text-xs font-bold text-zinc-300 mb-1">Director *</label>
+              <input id="movie-director" type="text" required placeholder="Ej. Denis Villeneuve"
+                oninput="updatePosterPreview()"
+                class="w-full px-3.5 py-2.5 rounded-xl bg-tubi-bg border border-tubi-border text-white text-sm focus:outline-none focus:border-[#E50914] transition" />
+            </div>
+
+            <div>
+              <label for="movie-synopsis" class="block text-xs font-bold text-zinc-300 mb-1">Sinopsis *</label>
+              <textarea id="movie-synopsis" rows="3" required placeholder="Escribe una sinopsis atractiva de la película..."
+                class="w-full px-3.5 py-2.5 rounded-xl bg-tubi-bg border border-tubi-border text-white text-sm focus:outline-none focus:border-[#E50914] transition resize-none"></textarea>
+            </div>
+
+            <div>
+              <label for="movie-image-url" class="block text-xs font-bold text-zinc-300 mb-1">URL de la imagen (Póster)</label>
+              <input id="movie-image-url" type="text" placeholder="https://ejemplo.com/poster.jpg (opcional)"
+                oninput="updatePosterPreview()"
+                class="w-full px-3.5 py-2.5 rounded-xl bg-tubi-bg border border-tubi-border text-white text-sm focus:outline-none focus:border-[#E50914] transition" />
+              <p class="text-[11px] text-zinc-400 mt-1">Si dejas el campo vacío o el enlace falla, se crea un póster ilustrado automáticamente.</p>
+            </div>
+
+            <!-- Vista previa instantánea del póster -->
+            <div class="p-3 rounded-2xl bg-tubi-bg border border-tubi-border flex items-center gap-3.5">
+              <div class="w-14 h-20 rounded-lg overflow-hidden bg-zinc-900 border border-zinc-700 shrink-0">
+                <img id="admin-poster-preview" src="" alt="Vista previa" class="w-full h-full object-cover" />
+              </div>
+              <div class="min-w-0">
+                <span class="text-[10px] font-extrabold uppercase tracking-wider text-[#FF4D58]">Vista previa en vivo</span>
+                <p id="preview-title-text" class="text-sm font-bold text-white truncate">Nueva Película</p>
+                <p id="preview-meta-text" class="text-xs text-zinc-400 truncate">Director • Año • Género</p>
+              </div>
+            </div>
+
+            <button type="submit" class="w-full py-3.5 px-5 rounded-full bg-[#E50914] hover:bg-[#F6121D] text-white font-extrabold text-sm transition shadow-lg shadow-[#E50914]/25">
+              Publicar en CineTubi
+            </button>
+          </form>
+        </div>
+
+        <!-- Tabla / Lista de Películas Activas con Baja -->
+        <div class="lg:col-span-7 bg-tubi-surface border border-tubi-border rounded-3xl p-6 shadow-xl">
+          <div class="flex items-center justify-between mb-5">
+            <div>
+              <h2 class="text-lg font-extrabold text-white">Películas en el Catálogo</h2>
+              <p class="text-xs text-zinc-400">Administra los títulos publicados o dalos de baja</p>
+            </div>
+            <span id="admin-total-badge" class="px-3 py-1 rounded-full bg-[#E50914]/15 text-[#FF4D58] text-xs font-extrabold">
+              0 títulos
+            </span>
+          </div>
+
+          <div id="admin-movies-list" class="space-y-3">
+            <!-- Listado generado por JS -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Monitor Discreto de Solicitudes HTTP REST Ejecutadas (Evidencia Cliente-Servidor) -->
+      <div class="bg-tubi-surface border border-tubi-border rounded-3xl p-5 sm:p-6 shadow-xl">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div class="flex items-center gap-2.5">
+            <span class="px-2.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-mono font-bold">HTTP/1.1 REST</span>
+            <h3 class="text-sm sm:text-base font-extrabold text-white">Registro de Solicitudes HTTP y Sincronización con Firebase RTDB</h3>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="http-endpoint-badge" class="text-[11px] font-mono text-zinc-400 truncate max-w-[340px]">https://fir-realtime-database-9a970-default-rtdb.firebaseio.com</span>
+            <button type="button" onclick="syncFromDatabase()" class="px-3 py-1 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-[11px] font-bold transition">
+              Ejecutar GET
+            </button>
+          </div>
+        </div>
+        <div id="http-logs-container" class="bg-tubi-bg border border-tubi-border rounded-2xl p-3.5 max-h-52 overflow-y-auto font-mono text-xs space-y-2">
+          <!-- Registros HTTP dinámicos -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Pie de página -->
+  <footer class="border-t border-tubi-border bg-tubi-surface/50 py-6 px-4 mt-12">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-zinc-400">
+      <div class="flex items-center gap-2">
+        <span class="font-display font-extrabold text-base text-white">Cine<span class="text-[#E50914]">Tubi</span></span>
+        <span>• Películas y series gratis. Sin suscripciones.</span>
+      </div>
+      <p>Arquitectura Cliente-Servidor HTTP & Base de Datos</p>
+    </div>
+  </footer>
+
+  <!-- JAVASCRIPT COMPLETO DE CINETUBI CON FIREBASE + CAPA HTTP REST -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // =========================================================================
+    // 1. INICIALIZACIÓN DE FIREBASE (SDK EN LA NUBE)
+    // =========================================================================
+    let db = null;
+    let auth = null;
+    let firebaseReady = false;
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'cinetubi-app';
+
+    async function initCloudDatabase() {
+      try {
+        if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+          const firebaseConfig = JSON.parse(__firebase_config);
+          const app = initializeApp(firebaseConfig);
+          auth = getAuth(app);
+          db = getFirestore(app);
+
+          if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            await signInWithCustomToken(auth, __initial_auth_token);
+          } else {
+            await signInAnonymously(auth);
+          }
+          firebaseReady = Boolean(auth.currentUser);
+        }
+      } catch (err) {
+        console.warn('Firebase SDK en modo respaldo HTTP/Local:', err.message);
+        firebaseReady = false;
+      }
+    }
+
+    // =========================================================================
+    // 2. GENERADOR DE PÓSTERS SVG PERSONALIZADOS (Imágenes siempre disponibles)
+    // =========================================================================
+    function generateTubiPosterSVG(title, year, director, genre, c1 = '#241218', c2 = '#0B0B0F', accent = '#E50914') {
+      const safeTitle = (title || 'Película').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const safeDirector = (director || 'Director').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const safeGenre = (genre || 'Cine').toUpperCase().replace(/&/g, '&amp;');
+      const safeYear = year || '2026';
+
+      const words = safeTitle.split(' ');
+      const lines = [];
+      let currentLine = '';
+      words.forEach(word => {
+        if ((currentLine + ' ' + word).trim().length <= 15) {
+          currentLine = (currentLine + ' ' + word).trim();
+        } else {
+          if (currentLine) lines.push(currentLine);
+          currentLine = word;
+        }
+      });
+      if (currentLine) lines.push(currentLine);
+      const displayLines = lines.slice(0, 3);
+
+      const titleSvg = displayLines.map((line, i) => {
+        const y = 345 + (i * 38);
+        return `<text x="200" y="${y}" text-anchor="middle" fill="#FFFFFF" font-family="Plus Jakarta Sans, Inter, Arial, sans-serif" font-weight="800" font-size="30">${line}</text>`;
+      }).join('');
+
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="400" height="600" viewBox="0 0 400 600">
+          <defs>
+            <linearGradient id="gBg" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="${c1}" />
+              <stop offset="100%" stop-color="${c2}" />
+            </linearGradient>
+            <radialGradient id="gSpot" cx="50%" cy="30%" r="50%">
+              <stop offset="0%" stop-color="${accent}" stop-opacity="0.35" />
+              <stop offset="100%" stop-color="${accent}" stop-opacity="0" />
+            </radialGradient>
+          </defs>
+          <rect width="400" height="600" fill="url(#gBg)" />
+          <rect width="400" height="600" fill="url(#gSpot)" />
+          <rect x="16" y="16" width="368" height="568" rx="18" fill="none" stroke="${accent}" stroke-opacity="0.35" stroke-width="2" />
+          <text x="200" y="54" text-anchor="middle" fill="#FFFFFF" font-family="Plus Jakarta Sans, Arial, sans-serif" font-weight="800" font-size="15" letter-spacing="1">CINE<tspan fill="#E50914">TUBI</tspan></text>
+          <circle cx="200" cy="185" r="66" fill="${accent}" fill-opacity="0.14" stroke="${accent}" stroke-width="2.5" />
+          <polygon points="186,160 226,185 186,210" fill="${accent}" />
+          <rect x="110" y="280" width="180" height="26" rx="13" fill="${accent}" fill-opacity="0.22" />
+          <text x="200" y="297" text-anchor="middle" fill="#FF6B74" font-family="Inter, Arial, sans-serif" font-weight="800" font-size="11" letter-spacing="2">${safeGenre}</text>
+          ${titleSvg}
+          <line x1="85" y1="478" x2="315" y2="478" stroke="#FFFFFF" stroke-opacity="0.18" stroke-width="1" />
+          <text x="200" y="508" text-anchor="middle" fill="#D4D4D8" font-family="Inter, Arial, sans-serif" font-weight="600" font-size="13">DIR. ${safeDirector.toUpperCase()}</text>
+          <text x="200" y="538" text-anchor="middle" fill="#E50914" font-family="Plus Jakarta Sans, Arial, sans-serif" font-weight="800" font-size="18" letter-spacing="3">${safeYear}</text>
+        </svg>
+      `;
+      return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg.trim());
+    }
+
+    // =========================================================================
+    // 3. DATOS INICIALES Y CONSTANTES
+    // =========================================================================
+    const DEFAULT_RTDB_URL = 'https://fir-realtime-database-9a970-default-rtdb.firebaseio.com';
+
+    const STORAGE_KEYS = {
+      USERS: 'cinetubi_users_cloud_v2',
+      MOVIES: 'cinetubi_movies_cloud_v2',
+      SESSION: 'cinetubi_session_cloud_v2',
+      RTDB_URL: 'cinetubi_custom_rtdb_url_v1'
+    };
+
+    const CATEGORIES = ['Todo', 'Ciencia Ficción', 'Acción', 'Drama', 'Terror', 'Animación', 'Suspenso'];
+
+    const DEFAULT_USERS = [
+      {
+        id: 'usr-demo',
+        name: 'Usuario CineTubi',
+        email: 'usuario@cinetubi.com',
+        password: '123456'
+      }
+    ];
+
+    const DEFAULT_MOVIES = [
+      {
+        id: 'tb-1',
+        title: 'Inception (El Origen)',
+        year: 2010,
+        director: 'Christopher Nolan',
+        genre: 'Ciencia Ficción',
+        synopsis: 'Dom Cobb es un ladrón experto en el peligroso arte de la extracción: robar valiosos secretos desde lo más profundo del subconsciente durante el estado de sueño. Su rara habilidad lo ha convertido en un fugitivo internacional, pero recibe una última oportunidad de redención si logra realizar lo imposible: implantar una idea.',
+        imageUrl: generateTubiPosterSVG('Inception (El Origen)', 2010, 'Christopher Nolan', 'Ciencia Ficción', '#2B1016', '#0B0B0F', '#E50914')
+      },
+      {
+        id: 'tb-2',
+        title: 'Mad Max: Furia en el Camino',
+        year: 2015,
+        director: 'George Miller',
+        genre: 'Acción',
+        synopsis: 'En un mundo postapocalíptico desértico donde la humanidad lucha por sobrevivir, Max Rockatansky une fuerzas con la Imperator Furiosa para huir de un tirano implacable y su ejército motorizado a través de una persecución frenética por el páramo.',
+        imageUrl: generateTubiPosterSVG('Mad Max: Furia en el Camino', 2015, 'George Miller', 'Acción', '#3B1212', '#0B0B0F', '#F6121D')
+      },
+      {
+        id: 'tb-3',
+        title: 'Parásitos',
+        year: 2019,
+        director: 'Bong Joon-ho',
+        genre: 'Suspenso',
+        synopsis: 'Toda la familia de Ki-taek está desempleada y vive en un semisótano precario en Seúl. Cuando el hijo mayor consigue trabajo como tutor en la lujosa mansión de la adinerada familia Park, los cuatro integrantes idean un plan para infiltrarse poco a poco en el hogar.',
+        imageUrl: generateTubiPosterSVG('Parásitos', 2019, 'Bong Joon-ho', 'Suspenso', '#231622', '#0B0B0F', '#F43F5E')
+      },
+      {
+        id: 'tb-4',
+        title: 'El Viaje de Chihiro',
+        year: 2001,
+        director: 'Hayao Miyazaki',
+        genre: 'Animación',
+        synopsis: 'Durante una mudanza, Chihiro, una niña de diez años, se adentra junto a sus padres en un túnel misterioso que conduce a un mundo mágico gobernado por dioses, espíritus y brujas. Tras ver a sus padres convertidos en cerdos, deberá trabajar en una casa de baños termales para liberarlos.',
+        imageUrl: generateTubiPosterSVG('El Viaje de Chihiro', 2001, 'Hayao Miyazaki', 'Animación', '#2E1024', '#0B0B0F', '#FB7185')
+      },
+      {
+        id: 'tb-5',
+        title: 'El Conjuro',
+        year: 2013,
+        director: 'James Wan',
+        genre: 'Terror',
+        synopsis: 'Basada en hechos reales documentados por los investigadores paranormales Ed y Lorraine Warren, quienes acuden a ayudar a una familia aterrorizada por una oscura y maligna presencia en su aislada granja en Rhode Island.',
+        imageUrl: generateTubiPosterSVG('El Conjuro', 2013, 'James Wan', 'Terror', '#290B0E', '#0B0B0F', '#EF4444')
+      },
+      {
+        id: 'tb-6',
+        title: 'Whiplash: Música y Obsesión',
+        year: 2014,
+        director: 'Damien Chazelle',
+        genre: 'Drama',
+        synopsis: 'Andrew Neiman es un joven y ambicioso baterista de jazz que sueña con alcanzar la cima en el conservatorio más prestigioso del país. Su vida cambia cuando Terence Fletcher, un instructor famoso por su talento y sus métodos abusivos, lo selecciona para su banda.',
+        imageUrl: generateTubiPosterSVG('Whiplash: Música y Obsesión', 2014, 'Damien Chazelle', 'Drama', '#2C1414', '#0B0B0F', '#E50914')
+      },
+      {
+        id: 'tb-7',
+        title: 'Blade Runner 2049',
+        year: 2017,
+        director: 'Denis Villeneuve',
+        genre: 'Ciencia Ficción',
+        synopsis: 'Treinta años después de los eventos de la primera película, un nuevo blade runner, el oficial K de la policía de Los Ángeles, desentierra un secreto oculto durante mucho tiempo que tiene el potencial de sumir lo que queda de la sociedad en el caos.',
+        imageUrl: generateTubiPosterSVG('Blade Runner 2049', 2017, 'Denis Villeneuve', 'Ciencia Ficción', '#2D141C', '#0B0B0F', '#F97316')
+      },
+      {
+        id: 'tb-8',
+        title: 'John Wick',
+        year: 2014,
+        director: 'Chad Stahelski',
+        genre: 'Acción',
+        synopsis: 'John Wick, un legendario asesino a sueldo retirado, se ve obligado a regresar al inframundo criminal de Nueva York después de que unos gánsteres irrumpen en su casa, roban su auto clásico y le arrebatan el último regalo de su difunta esposa.',
+        imageUrl: generateTubiPosterSVG('John Wick', 2014, 'Chad Stahelski', 'Acción', '#1F1224', '#0B0B0F', '#E50914')
+      }
+    ];
+
+    // =========================================================================
+    // 4. ESTADO GLOBAL Y CAPA EXPLÍCITA DE SOLICITUDES HTTP REST + BASE DE DATOS
+    // =========================================================================
+    let users = [];
+    let movies = [];
+    let currentUser = null;
+    let currentView = 'auth';
+    let selectedCategory = 'Todo';
+    let playerPlaying = true;
+    let playerInterval = null;
+    let httpLogs = [];
+
+    function getCustomRtdbUrl() {
+      const saved = localStorage.getItem(STORAGE_KEYS.RTDB_URL);
+      const url = (saved && saved.trim()) ? saved.trim() : DEFAULT_RTDB_URL;
+      return url.replace(/\/+$/, '');
+    }
+
+    function logHttpRequest(method, endpoint, statusCode, detail, isError = false) {
+      const now = new Date();
+      const time = now.toTimeString().split(' ')[0];
+      httpLogs.unshift({ time, method, endpoint, statusCode, detail, isError });
+      if (httpLogs.length > 30) httpLogs.pop();
+      renderHttpLogs();
+    }
+
+    function renderHttpLogs() {
+      const container = document.getElementById('http-logs-container');
+      const endpointBadge = document.getElementById('http-endpoint-badge');
+      const activeUrl = getCustomRtdbUrl();
+      if (endpointBadge) {
+        endpointBadge.textContent = activeUrl;
+      }
+      if (!container) return;
+
+      if (httpLogs.length === 0) {
+        container.innerHTML = '<p class="text-zinc-500">Esperando solicitudes HTTP...</p>';
+        return;
+      }
+
+      const methodColors = {
+        GET: 'text-sky-400 bg-sky-500/10 border-sky-500/30',
+        POST: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
+        PUT: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+        DELETE: 'text-rose-400 bg-rose-500/10 border-rose-500/30'
+      };
+
+      container.innerHTML = httpLogs.map(log => {
+        const statusStyle = log.isError
+          ? 'bg-red-500/15 text-red-300 border border-red-500/30'
+          : 'bg-emerald-500/15 text-emerald-300';
+        return `
+        <div class="flex flex-wrap items-center justify-between gap-2 py-1.5 px-2.5 rounded-lg bg-tubi-surface/80 border border-zinc-800/80">
+          <div class="flex items-center gap-2 min-w-0 flex-1">
+            <span class="text-zinc-500 text-[11px] shrink-0">[${log.time}]</span>
+            <span class="px-2 py-0.5 rounded border text-[10px] font-extrabold shrink-0 ${methodColors[log.method] || 'text-zinc-300'}">${log.method}</span>
+            <span class="text-zinc-200 truncate text-[11px]" title="${log.endpoint}">${log.endpoint}</span>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="text-zinc-400 text-[11px] hidden sm:inline">${log.detail}</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${statusStyle}">${log.statusCode}</span>
+          </div>
+        </div>
+      `;
+      }).join('');
+    }
+
+    // Capa de servicio HTTP REST (fetch GET / POST / PUT / DELETE) conectada directamente a Firebase RTDB
+    async function httpDatabaseRequest(method, resourcePath, payload = null, itemId = null) {
+      const baseUrl = getCustomRtdbUrl();
+      const targetEndpoint = `${baseUrl}/${resourcePath}${itemId ? '/' + encodeURIComponent(itemId) : ''}.json`;
+
+      try {
+        const fetchOptions = {
+          method,
+          headers: { 'Content-Type': 'application/json' }
+        };
+        if (payload && (method === 'POST' || method === 'PUT')) {
+          fetchOptions.body = JSON.stringify(payload);
+        }
+
+        const response = await fetch(targetEndpoint, fetchOptions);
+
+        if (!response.ok) {
+          const errStatus = `${response.status} ${response.statusText || 'Error'}`;
+          logHttpRequest(method, targetEndpoint, errStatus, 'Revisa reglas RTDB (.read/.write)', true);
+          updateDbIndicator(false);
+          if (response.status === 401 || response.status === 403) {
+            showToast('Firebase RTDB bloqueó la petición (401/403). Verifica que las reglas estén en modo prueba (.read/.write: true).', 'error');
+          }
+          return null;
+        }
+
+        const data = await response.json();
+        updateDbIndicator(true);
+        const detailMap = {
+          GET: 'Datos recibidos de RTDB',
+          POST: 'Registro creado en RTDB',
+          PUT: 'Colección sincronizada en RTDB',
+          DELETE: 'Registro eliminado de RTDB'
+        };
+        logHttpRequest(method, targetEndpoint, `${response.status} OK`, detailMap[method] || 'Firebase RTDB');
+        return data;
+      } catch (error) {
+        console.warn('Error de red al conectar con Firebase RTDB:', error);
+        updateDbIndicator(false);
+        logHttpRequest(method, targetEndpoint, 'Network / CORS Error', 'Modo respaldo local activo', true);
+        showToast('No se pudo contactar Firebase RTDB (revisa tu conexión a internet). Usando respaldo local.', 'error');
+        return null;
+      }
+    }
+
+    function updateDbIndicator(connected) {
+      const dot = document.getElementById('db-status-dot');
+      const text = document.getElementById('db-status-text');
+      if (dot) {
+        dot.className = connected
+          ? 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse'
+          : 'w-2 h-2 rounded-full bg-amber-400';
+      }
+      if (text) {
+        text.textContent = connected ? 'Firebase RTDB Conectado' : 'RTDB (Modo Respaldo)';
+      }
+    }
+
+    async function loadState() {
+      await initCloudDatabase();
+
+      // Carga inicial desde almacenamiento local mientras llega la respuesta HTTP GET de Firebase RTDB
+      try {
+        const savedUsers = localStorage.getItem(STORAGE_KEYS.USERS);
+        users = savedUsers ? JSON.parse(savedUsers) : [...DEFAULT_USERS];
+
+        const savedMovies = localStorage.getItem(STORAGE_KEYS.MOVIES);
+        movies = savedMovies ? JSON.parse(savedMovies) : [...DEFAULT_MOVIES];
+
+        const savedSession = localStorage.getItem(STORAGE_KEYS.SESSION);
+        currentUser = savedSession ? JSON.parse(savedSession) : null;
+      } catch (err) {
+        users = [...DEFAULT_USERS];
+        movies = [...DEFAULT_MOVIES];
+        currentUser = null;
+      }
+
+      // Sincronización HTTP GET directa con https://fir-realtime-database-9a970-default-rtdb.firebaseio.com
+      await syncFromDatabase(true);
+    }
+
+    async function syncFromDatabase(silent = false) {
+      // 1. GET /usuarios.json
+      const remoteUsers = await httpDatabaseRequest('GET', 'usuarios');
+      if (remoteUsers && typeof remoteUsers === 'object') {
+        const parsedUsers = Array.isArray(remoteUsers)
+          ? remoteUsers.filter(Boolean)
+          : Object.entries(remoteUsers).map(([key, val]) => ({ ...val, _fbKey: key }));
+
+        if (parsedUsers.length > 0) {
+          const mergedMap = new Map();
+          [...DEFAULT_USERS, ...users, ...parsedUsers].forEach(u => {
+            if (u && u.email) mergedMap.set(u.email.toLowerCase(), u);
+          });
+          users = Array.from(mergedMap.values());
+          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+        }
+      } else if (remoteUsers === null) {
+        // Si el nodo /usuarios.json está vacío en RTDB, inicializamos el usuario demo mediante PUT
+        const usersMap = {};
+        users.forEach(u => { usersMap[u.id] = u; });
+        await httpDatabaseRequest('PUT', 'usuarios', usersMap);
+      }
+
+      // 2. GET /peliculas.json
+      const remoteMovies = await httpDatabaseRequest('GET', 'peliculas');
+      if (remoteMovies && typeof remoteMovies === 'object') {
+        const parsedMovies = Array.isArray(remoteMovies)
+          ? remoteMovies.filter(Boolean)
+          : Object.entries(remoteMovies).map(([key, val]) => ({
+              ...val,
+              id: val.id || key,
+              _fbKey: key
+            }));
+
+        if (parsedMovies.length > 0) {
+          movies = parsedMovies.filter(m => m && m.title);
+          localStorage.setItem(STORAGE_KEYS.MOVIES, JSON.stringify(movies));
+        }
+      } else if (remoteMovies === null) {
+        // Si /peliculas.json está vacío en Firebase RTDB, sembramos las 8 películas iniciales vía HTTP PUT
+        const moviesMap = {};
+        DEFAULT_MOVIES.forEach(m => { moviesMap[m.id] = m; });
+        const seeded = await httpDatabaseRequest('PUT', 'peliculas', moviesMap);
+        if (seeded) {
+          movies = [...DEFAULT_MOVIES];
+          localStorage.setItem(STORAGE_KEYS.MOVIES, JSON.stringify(movies));
+        }
+      }
+
+      if (!silent) {
+        if (currentView === 'catalog') {
+          renderHeroBanner();
+          renderGenrePills();
+          renderCatalog();
+        } else if (currentView === 'admin') {
+          renderAdminList();
+        }
+        showToast('Catálogo sincronizado vía HTTP GET con Firebase RTDB.', 'success');
+      }
+    }
+
+    function saveSession() {
+      if (currentUser) {
+        localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(currentUser));
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.SESSION);
+      }
+    }
+
+    // =========================================================================
+    // 5. MODAL DE CONFIGURACIÓN HTTP / FIREBASE RTDB
+    // =========================================================================
+    function openDbConfigModal() {
+      const modal = document.getElementById('db-config-modal');
+      document.getElementById('custom-rtdb-url').value = getCustomRtdbUrl();
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeDbConfigModal() {
+      const modal = document.getElementById('db-config-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    async function saveCustomFirebaseUrl(event) {
+      event.preventDefault();
+      const raw = document.getElementById('custom-rtdb-url').value.trim().replace(/\/+$/, '');
+      if (raw) {
+        localStorage.setItem(STORAGE_KEYS.RTDB_URL, raw);
+        updateDbIndicator(true);
+        showToast('Endpoint Firebase RTDB actualizado. Sincronizando...', 'success');
+        const moviesObj = {};
+        movies.forEach(m => { moviesObj[m.id] = m; });
+        await httpDatabaseRequest('PUT', 'peliculas', moviesObj);
+        const usersObj = {};
+        users.forEach(u => { usersObj[u.id] = u; });
+        await httpDatabaseRequest('PUT', 'usuarios', usersObj);
+      } else {
+        resetCustomFirebaseUrl();
+      }
+      closeDbConfigModal();
+    }
+
+    function resetCustomFirebaseUrl() {
+      localStorage.setItem(STORAGE_KEYS.RTDB_URL, DEFAULT_RTDB_URL);
+      document.getElementById('custom-rtdb-url').value = DEFAULT_RTDB_URL;
+      updateDbIndicator(true);
+      renderHttpLogs();
+      showToast('URL conectada a fir-realtime-database-9a970-default-rtdb.firebaseio.com', 'info');
+      closeDbConfigModal();
+    }
+
+    // =========================================================================
+    // 6. NOTIFICACIONES TOAST Y MODAL DE CONFIRMACIÓN
+    // =========================================================================
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const styles = {
+        success: 'bg-zinc-900 border-[#E50914]/70 text-white',
+        error: 'bg-red-950/95 border-red-500/70 text-red-100',
+        info: 'bg-zinc-900 border-zinc-700 text-zinc-200'
+      };
+      const dot = type === 'error' ? 'bg-red-500' : 'bg-[#E50914]';
+
+      toast.className = `pointer-events-auto px-4 py-3 rounded-2xl border shadow-2xl text-xs sm:text-sm font-semibold flex items-center justify-between gap-3 fade-in ${styles[type] || styles.info}`;
+      toast.innerHTML = `
+        <div class="flex items-center gap-2.5">
+          <span class="w-2 h-2 rounded-full ${dot} shrink-0"></span>
+          <span>${message}</span>
+        </div>
+        <button type="button" onclick="this.parentElement.remove()" class="text-xs text-zinc-400 hover:text-white font-bold">✕</button>
+      `;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        if (toast.parentElement) toast.remove();
+      }, 3600);
+    }
+
+    function openConfirmModal(title, message, onConfirm) {
+      const modal = document.getElementById('confirm-modal');
+      document.getElementById('confirm-title').textContent = title;
+      document.getElementById('confirm-message').textContent = message;
+
+      const cancelBtn = document.getElementById('confirm-cancel-btn');
+      const acceptBtn = document.getElementById('confirm-accept-btn');
+
+      const close = () => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      };
+
+      cancelBtn.onclick = close;
+      acceptBtn.onclick = () => {
+        close();
+        onConfirm();
+      };
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    // =========================================================================
+    // 7. NAVEGACIÓN ENTRE VISTAS
+    // =========================================================================
+    function navigateTo(viewName, movieId = null) {
+      if (!currentUser && viewName !== 'auth') {
+        showToast('Inicia sesión o regístrate gratis para continuar.', 'error');
+        viewName = 'auth';
+      }
+
+      currentView = viewName;
+      ['auth', 'catalog', 'detail', 'admin'].forEach(v => {
+        const section = document.getElementById(`view-${v}`);
+        if (section) {
+          section.classList.toggle('hidden', v !== viewName);
+        }
+      });
+
+      const navbar = document.getElementById('main-navbar');
+      const searchWrapper = document.getElementById('navbar-search-wrapper');
+
+      if (currentUser && viewName !== 'auth') {
+        navbar.classList.remove('hidden');
+        document.getElementById('navbar-user-name').textContent = currentUser.name;
+        document.getElementById('user-avatar-initials').textContent = currentUser.name.charAt(0).toUpperCase();
+        searchWrapper.classList.toggle('hidden', viewName !== 'catalog');
+        updateNavButtons(viewName);
+      } else {
+        navbar.classList.add('hidden');
+      }
+
+      if (viewName === 'catalog') {
+        renderHeroBanner();
+        renderGenrePills();
+        renderCatalog();
+      } else if (viewName === 'detail' && movieId) {
+        renderMovieDetail(movieId);
+      } else if (viewName === 'admin') {
+        updatePosterPreview();
+        renderAdminList();
+        renderHttpLogs();
+      }
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function updateNavButtons(viewName) {
+      const catBtn = document.getElementById('nav-catalog-btn');
+      const admBtn = document.getElementById('nav-admin-btn');
+
+      const active = ['bg-[#E50914]', 'text-white'];
+      const inactive = ['text-zinc-300', 'hover:bg-white/10', 'hover:text-white'];
+
+      [catBtn, admBtn].forEach(b => b.classList.remove(...active, ...inactive));
+
+      if (viewName === 'catalog' || viewName === 'detail') {
+        catBtn.classList.add(...active);
+        admBtn.classList.add(...inactive);
+      } else if (viewName === 'admin') {
+        admBtn.classList.add(...active);
+        catBtn.classList.add(...inactive);
+      }
+    }
+
+    // =========================================================================
+    // 8. PANTALLA 1: INICIO, REGISTRO E INICIO DE SESIÓN (CON HTTP & BD)
+    // =========================================================================
+    function switchAuthTab(tab) {
+      const loginForm = document.getElementById('login-form');
+      const registerForm = document.getElementById('register-form');
+      const loginBtn = document.getElementById('tab-login-btn');
+      const regBtn = document.getElementById('tab-register-btn');
+
+      if (tab === 'login') {
+        loginForm.classList.remove('hidden');
+        registerForm.classList.add('hidden');
+        loginBtn.className = 'py-2.5 rounded-full text-xs sm:text-sm font-extrabold transition bg-[#E50914] text-white';
+        regBtn.className = 'py-2.5 rounded-full text-xs sm:text-sm font-extrabold transition text-zinc-400 hover:text-white';
+      } else {
+        registerForm.classList.remove('hidden');
+        loginForm.classList.add('hidden');
+        regBtn.className = 'py-2.5 rounded-full text-xs sm:text-sm font-extrabold transition bg-[#E50914] text-white';
+        loginBtn.className = 'py-2.5 rounded-full text-xs sm:text-sm font-extrabold transition text-zinc-400 hover:text-white';
+      }
+    }
+
+    async function handleLogin(event) {
+      event.preventDefault();
+      const email = document.getElementById('login-email').value.trim().toLowerCase();
+      const password = document.getElementById('login-password').value;
+
+      // Verificar mediante HTTP GET en base de datos
+      await syncFromDatabase(true);
+
+      const user = users.find(u => u.email.toLowerCase() === email && u.password === password);
+      if (!user) {
+        showToast('Correo o contraseña incorrectos.', 'error');
+        return;
+      }
+
+      currentUser = { id: user.id, name: user.name, email: user.email };
+      saveSession();
+      showToast(`¡Bienvenido a CineTubi, ${currentUser.name}!`, 'success');
+      navigateTo('catalog');
+    }
+
+    async function handleRegister(event) {
+      event.preventDefault();
+      const name = document.getElementById('reg-name').value.trim();
+      const email = document.getElementById('reg-email').value.trim().toLowerCase();
+      const password = document.getElementById('reg-password').value;
+
+      if (users.some(u => u.email.toLowerCase() === email)) {
+        showToast('Ese correo ya tiene una cuenta. Inicia sesión.', 'error');
+        switchAuthTab('login');
+        document.getElementById('login-email').value = email;
+        return;
+      }
+
+      const newUser = {
+        id: 'usr-' + Date.now(),
+        name,
+        email,
+        password
+      };
+
+      users.push(newUser);
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+
+      // Guardar nuevo usuario mediante petición HTTP POST en la base de datos
+      await httpDatabaseRequest('POST', 'usuarios', newUser, newUser.id);
+
+      currentUser = { id: newUser.id, name: newUser.name, email: newUser.email };
+      saveSession();
+
+      document.getElementById('register-form').reset();
+      showToast(`¡Usuario guardado en Base de Datos! Bienvenido, ${currentUser.name}.`, 'success');
+      navigateTo('catalog');
+    }
+
+    function quickDemoLogin() {
+      const demo = users[0] || DEFAULT_USERS[0];
+      currentUser = { id: demo.id, name: demo.name, email: demo.email };
+      saveSession();
+      showToast(`Ingresaste con cuenta demo (${currentUser.name})`, 'success');
+      navigateTo('catalog');
+    }
+
+    function handleLogout() {
+      currentUser = null;
+      saveSession();
+      showToast('Sesión cerrada correctamente.', 'info');
+      navigateTo('auth');
+    }
+
+    // =========================================================================
+    // 9. PANTALLA 2: CATÁLOGO ESTILO STREAMING (Hero, Pills y Tarjetas 2:3)
+    // =========================================================================
+    function renderHeroBanner() {
+      const banner = document.getElementById('catalog-hero-banner');
+      if (movies.length === 0) {
+        banner.classList.add('hidden');
+        return;
+      }
+      banner.classList.remove('hidden');
+
+      const featured = movies[0];
+      const fallback = generateTubiPosterSVG(featured.title, featured.year, featured.director, featured.genre);
+
+      document.getElementById('hero-title').textContent = featured.title;
+      document.getElementById('hero-genre-badge').textContent = featured.genre;
+      document.getElementById('hero-year-badge').textContent = `${featured.year} • Dir. ${featured.director}`;
+      document.getElementById('hero-synopsis').textContent = featured.synopsis;
+
+      const heroImg = document.getElementById('hero-poster-img');
+      heroImg.onerror = function () {
+        this.onerror = null;
+        this.src = fallback;
+      };
+      heroImg.src = featured.imageUrl || fallback;
+
+      document.getElementById('hero-play-btn').onclick = () => openPlayerModal(featured);
+      document.getElementById('hero-detail-btn').onclick = () => navigateTo('detail', featured.id);
+    }
+
+    function renderGenrePills() {
+      const container = document.getElementById('genre-pills-container');
+      const allGenres = [...new Set([...CATEGORIES, ...movies.map(m => m.genre)])];
+
+      container.innerHTML = allGenres.map(genre => {
+        const isActive = genre === selectedCategory;
+        const classes = isActive
+          ? 'bg-[#E50914] text-white font-extrabold shadow-md shadow-[#E50914]/25'
+          : 'bg-tubi-surface hover:bg-zinc-800 text-zinc-300 border border-tubi-border font-semibold';
+        return `
+          <button type="button" onclick="selectCategory('${genre}')"
+            class="px-4 py-2 rounded-full text-xs sm:text-sm whitespace-nowrap transition ${classes}">
+            ${genre}
+          </button>
+        `;
+      }).join('');
+    }
+
+    function selectCategory(genre) {
+      selectedCategory = genre;
+      renderGenrePills();
+      renderCatalog();
+    }
+
+    function handleSearchInput() {
+      if (currentView !== 'catalog') {
+        navigateTo('catalog');
+      } else {
+        renderCatalog();
+      }
+    }
+
+    function resetFilters() {
+      selectedCategory = 'Todo';
+      document.getElementById('catalog-search').value = '';
+      renderGenrePills();
+      renderCatalog();
+    }
+
+    function renderCatalog() {
+      const grid = document.getElementById('catalog-grid');
+      const emptyState = document.getElementById('catalog-empty-state');
+      const countLabel = document.getElementById('catalog-count-label');
+      const query = document.getElementById('catalog-search').value.trim().toLowerCase();
+
+      const filtered = movies.filter(movie => {
+        const matchGenre = selectedCategory === 'Todo' || movie.genre === selectedCategory;
+        const matchQuery = movie.title.toLowerCase().includes(query) || movie.director.toLowerCase().includes(query);
+        return matchGenre && matchQuery;
+      });
+
+      countLabel.textContent = `${filtered.length} ${filtered.length === 1 ? 'película disponible' : 'películas disponibles'} gratis en Base de Datos`;
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      grid.innerHTML = filtered.map(movie => {
+        const fallback = generateTubiPosterSVG(movie.title, movie.year, movie.director, movie.genre);
+        return `
+          <article onclick="navigateTo('detail', '${movie.id}')"
+            class="group cursor-pointer flex flex-col space-y-2.5">
+            <div class="relative aspect-[2/3] w-full rounded-2xl overflow-hidden bg-tubi-surface border border-tubi-border group-hover:border-[#E50914] transition-all duration-300 shadow-lg">
+              <img src="${movie.imageUrl}"
+                onerror="this.onerror=null; this.src='${fallback}';"
+                alt="${movie.title}"
+                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+              <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent opacity-60 group-hover:opacity-90 transition"></div>
+              <span class="absolute top-2.5 right-2.5 px-2 py-0.5 rounded bg-[#E50914] text-white text-[10px] font-extrabold tracking-wider shadow">
+                GRATIS
+              </span>
+              <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-300">
+                <div class="w-12 h-12 rounded-full bg-[#E50914] text-white flex items-center justify-center shadow-xl shadow-[#E50914]/40 transform scale-90 group-hover:scale-100 transition">
+                  <svg class="w-6 h-6 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+            <div class="px-0.5">
+              <h3 class="text-sm sm:text-base font-bold text-white group-hover:text-[#FF4D58] transition line-clamp-1" title="${movie.title}">
+                ${movie.title}
+              </h3>
+              <div class="flex items-center gap-1.5 text-xs text-zinc-400 mt-0.5">
+                <span>${movie.year}</span>
+                <span>•</span>
+                <span class="truncate">${movie.genre}</span>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    // =========================================================================
+    // 10. PANTALLA 3: DESCRIPCIÓN DETALLADA Y REPRODUCTOR SIMULADO
+    // =========================================================================
+    function renderMovieDetail(movieId) {
+      const movie = movies.find(m => m.id === movieId);
+      if (!movie) {
+        showToast('Película no encontrada.', 'error');
+        navigateTo('catalog');
+        return;
+      }
+
+      const fallback = generateTubiPosterSVG(movie.title, movie.year, movie.director, movie.genre);
+      const poster = document.getElementById('detail-poster');
+      poster.onerror = function () {
+        this.onerror = null;
+        this.src = fallback;
+      };
+      poster.src = movie.imageUrl || fallback;
+
+      document.getElementById('detail-title').textContent = movie.title;
+      document.getElementById('detail-year').textContent = movie.year;
+      document.getElementById('detail-year-badge').textContent = `Estreno ${movie.year}`;
+      document.getElementById('detail-director').textContent = movie.director;
+      document.getElementById('detail-genre').textContent = movie.genre;
+      document.getElementById('detail-synopsis').textContent = movie.synopsis;
+
+      document.getElementById('detail-play-btn').onclick = () => openPlayerModal(movie);
+    }
+
+    function openPlayerModal(movie) {
+      const modal = document.getElementById('player-modal');
+      const fallback = generateTubiPosterSVG(movie.title, movie.year, movie.director, movie.genre);
+
+      document.getElementById('player-movie-title').textContent = `${movie.title} (${movie.year})`;
+      document.getElementById('player-center-title').textContent = movie.title;
+      document.getElementById('player-center-meta').textContent = `Dir. ${movie.director} • ${movie.year} • ${movie.genre}`;
+      document.getElementById('player-backdrop').style.backgroundImage = `url('${movie.imageUrl || fallback}')`;
+
+      playerPlaying = true;
+      let progress = 18;
+      const bar = document.getElementById('player-progress-bar');
+      const toggleBtn = document.getElementById('player-toggle-btn');
+      bar.style.width = `${progress}%`;
+      toggleBtn.textContent = 'Pausar';
+
+      if (playerInterval) clearInterval(playerInterval);
+      playerInterval = setInterval(() => {
+        if (playerPlaying && progress < 100) {
+          progress += 1;
+          bar.style.width = `${progress}%`;
+        }
+      }, 1000);
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function togglePlayerState() {
+      playerPlaying = !playerPlaying;
+      const toggleBtn = document.getElementById('player-toggle-btn');
+      const playIcon = document.getElementById('player-play-icon');
+      toggleBtn.textContent = playerPlaying ? 'Pausar' : 'Reanudar';
+      playIcon.classList.toggle('animate-pulse', playerPlaying);
+    }
+
+    function closePlayerModal() {
+      const modal = document.getElementById('player-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      if (playerInterval) clearInterval(playerInterval);
+    }
+
+    // =========================================================================
+    // 11. PANTALLA 4: ADMINISTRACIÓN (ALTA POST Y BAJA DELETE EN BASE DE DATOS)
+    // =========================================================================
+    function updatePosterPreview() {
+      const title = document.getElementById('movie-title').value.trim() || 'Nueva Película';
+      const year = document.getElementById('movie-year').value.trim() || '2026';
+      const director = document.getElementById('movie-director').value.trim() || 'Director';
+      const genre = document.getElementById('movie-genre').value || 'Ciencia Ficción';
+      const url = document.getElementById('movie-image-url').value.trim();
+
+      const generated = generateTubiPosterSVG(title, year, director, genre);
+      const previewImg = document.getElementById('admin-poster-preview');
+      previewImg.onerror = function () {
+        this.onerror = null;
+        this.src = generated;
+      };
+      previewImg.src = url || generated;
+
+      document.getElementById('preview-title-text').textContent = title;
+      document.getElementById('preview-meta-text').textContent = `${director} • ${year} • ${genre}`;
+    }
+
+    async function handleAddMovie(event) {
+      event.preventDefault();
+
+      const title = document.getElementById('movie-title').value.trim();
+      const year = parseInt(document.getElementById('movie-year').value, 10);
+      const director = document.getElementById('movie-director').value.trim();
+      const genre = document.getElementById('movie-genre').value;
+      const synopsis = document.getElementById('movie-synopsis').value.trim();
+      const rawUrl = document.getElementById('movie-image-url').value.trim();
+
+      const isValidUrl = rawUrl && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://') || rawUrl.startsWith('data:'));
+      const imageUrl = isValidUrl ? rawUrl : generateTubiPosterSVG(title, year, director, genre);
+
+      const newMovie = {
+        id: 'tb-' + Date.now(),
+        title,
+        year,
+        director,
+        genre,
+        synopsis,
+        imageUrl
+      };
+
+      // Petición HTTP POST directa a /peliculas.json en Firebase Realtime Database
+      const postRes = await httpDatabaseRequest('POST', 'peliculas', newMovie);
+      if (postRes && postRes.name) {
+        newMovie._fbKey = postRes.name;
+      }
+
+      movies.unshift(newMovie);
+      localStorage.setItem(STORAGE_KEYS.MOVIES, JSON.stringify(movies));
+
+      document.getElementById('add-movie-form').reset();
+      updatePosterPreview();
+      renderAdminList();
+      showToast(`"${title}" guardada en Firebase RTDB (HTTP POST).`, 'success');
+    }
+
+    function handleDeleteMovie(movieId) {
+      const movie = movies.find(m => m.id === movieId);
+      if (!movie) return;
+
+      openConfirmModal(
+        'Dar de baja película',
+        `¿Seguro que deseas eliminar "${movie.title}" (${movie.year}) de Firebase Realtime Database?`,
+        async () => {
+          const targetKey = movie._fbKey || movieId;
+          // Petición HTTP DELETE directa a /peliculas/{id}.json en Firebase Realtime Database
+          await httpDatabaseRequest('DELETE', 'peliculas', null, targetKey);
+
+          movies = movies.filter(m => m.id !== movieId);
+          localStorage.setItem(STORAGE_KEYS.MOVIES, JSON.stringify(movies));
+
+          renderAdminList();
+          showToast(`"${movie.title}" eliminada de Firebase RTDB (HTTP DELETE).`, 'info');
+        }
+      );
+    }
+
+    function renderAdminList() {
+      const list = document.getElementById('admin-movies-list');
+      const badge = document.getElementById('admin-total-badge');
+      badge.textContent = `${movies.length} ${movies.length === 1 ? 'título' : 'títulos'}`;
+
+      if (movies.length === 0) {
+        list.innerHTML = `
+          <div class="text-center py-10 px-4 rounded-2xl bg-tubi-bg border border-tubi-border">
+            <p class="text-sm text-zinc-400">El catálogo está vacío. Usa el formulario de la izquierda para dar de alta una película.</p>
+          </div>
+        `;
+        return;
+      }
+
+      list.innerHTML = movies.map(movie => {
+        const fallback = generateTubiPosterSVG(movie.title, movie.year, movie.director, movie.genre);
+        return `
+          <div class="flex items-center justify-between gap-3.5 p-3.5 rounded-2xl bg-tubi-bg border border-tubi-border hover:border-zinc-700 transition">
+            <div class="flex items-center gap-3.5 min-w-0">
+              <img src="${movie.imageUrl}"
+                onerror="this.onerror=null; this.src='${fallback}';"
+                alt="${movie.title}"
+                class="w-12 h-16 rounded-xl object-cover bg-zinc-900 border border-zinc-800 shrink-0" />
+              <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                  <h4 class="text-sm font-bold text-white truncate">${movie.title}</h4>
+                  <span class="px-2 py-0.5 rounded bg-[#E50914]/15 text-[#FF4D58] text-[10px] font-extrabold shrink-0">${movie.year}</span>
+                </div>
+                <p class="text-xs text-zinc-400 truncate mt-0.5">Dir. ${movie.director} • ${movie.genre}</p>
+                <p class="text-[11px] text-zinc-500 truncate mt-0.5">${movie.synopsis}</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 shrink-0">
+              <button type="button" onclick="navigateTo('detail', '${movie.id}')" title="Ver ficha"
+                class="p-2 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </button>
+              <button type="button" onclick="handleDeleteMovie('${movie.id}')"
+                class="px-3.5 py-2 rounded-full bg-[#E50914]/15 hover:bg-[#E50914] text-[#FF4D58] hover:text-white border border-[#E50914]/35 text-xs font-bold transition">
+                Dar de baja
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function confirmResetCatalog() {
+      openConfirmModal(
+        'Restaurar catálogo inicial',
+        '¿Deseas restablecer las 8 películas iniciales de CineTubi en Firebase Realtime Database?',
+        async () => {
+          movies = [...DEFAULT_MOVIES];
+          localStorage.setItem(STORAGE_KEYS.MOVIES, JSON.stringify(movies));
+          const moviesMap = {};
+          DEFAULT_MOVIES.forEach(m => { moviesMap[m.id] = m; });
+          await httpDatabaseRequest('PUT', 'peliculas', moviesMap);
+          renderAdminList();
+          showToast('Catálogo inicial restaurado en Firebase RTDB (HTTP PUT).', 'success');
+        }
+      );
+    }
+
+    // Exponer funciones al ámbito global window para eventos inline HTML
+    Object.assign(window, {
+      navigateTo,
+      switchAuthTab,
+      handleLogin,
+      handleRegister,
+      quickDemoLogin,
+      handleLogout,
+      selectCategory,
+      handleSearchInput,
+      resetFilters,
+      openPlayerModal,
+      togglePlayerState,
+      closePlayerModal,
+      updatePosterPreview,
+      handleAddMovie,
+      handleDeleteMovie,
+      confirmResetCatalog,
+      openDbConfigModal,
+      closeDbConfigModal,
+      saveCustomFirebaseUrl,
+      resetCustomFirebaseUrl,
+      syncFromDatabase
+    });
+
+    // =========================================================================
+    // 12. ARRANQUE DE LA APLICACIÓN
+    // =========================================================================
+    window.addEventListener('DOMContentLoaded', async () => {
+      await loadState();
+      if (currentUser) {
+        navigateTo('catalog');
+      } else {
+        navigateTo('auth');
+      }
+    });
+  </script>
+</body>
+</html>
